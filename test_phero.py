@@ -46,6 +46,30 @@ class TestServiceRegistry(unittest.TestCase):
     with self.assertRaises(phero.UnknownService):
       registry.process(ctx, service_name, args)
 
+  def test_default_service(self):
+    def default(ctx):
+      return "Default Service"
+
+    registry = phero.ServiceRegistry()
+    registry.register_default(default)
+
+    ctx = {}
+    expected = "Default Service"
+
+    actual = registry.process(ctx, None, None)
+
+    self.assertEquals(expected, actual)
+
+  def test_default_default_service(self):
+    registry = phero.ServiceRegistry()
+
+    ctx = {}
+    expected = None
+
+    actual = registry.process(ctx, None, None)
+
+    self.assertEquals(expected, actual)
+
 
 class TestService(unittest.TestCase):
   def test_basic(self):

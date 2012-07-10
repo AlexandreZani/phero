@@ -20,11 +20,17 @@ import inspect
 class ServiceRegistry(object):
   def __init__(self):
     self.services = {}
+    self.register_default(lambda ctx: None)
 
   def register(self, function):
     self.services[function.func_name] = Service(function)
 
+  def register_default(self, function):
+    self.services[None] = Service(function)
+
   def process(self, ctx, service_name, args):
+    if args is None:
+      args = {}
     try:
       service = self.services[service_name]
     except KeyError:
