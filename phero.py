@@ -17,6 +17,28 @@
 import inspect
 
 
+def process_request(registries, request, catch_all=False):
+  ctx = {}
+  for (registry_name, registry) in registries:
+    service_request = request.get(registry_name, {})
+    service_name = service_request.get('service', None)
+    args = service_request.get('args', {})
+    try:
+      result = registry.process(ctx, service_name, args)
+    except PheroError as err:
+      return {
+          'error': err.__class__.__name__,
+          'details': err.details
+      }
+    except Exception:
+      if (catch_all):
+        return { 'error': 'GenericInternalError' }
+      raise
+
+    ctx[registry_name] = result
+  return { 'result': result }
+
+
 class ServiceRegistry(object):
   def __init__(self):
     self.services = {}
@@ -34,7 +56,7 @@ class ServiceRegistry(object):
     try:
       service = self.services[service_name]
     except KeyError:
-      raise UnknownService(service_name)
+      raise UnknownService(service=service_name)
     return service(ctx, args)
 
 
@@ -54,20 +76,24 @@ class Service(object):
   def _bind(self, args):
     for required_arg in self.required_args:
       if required_arg not in args:
-        raise MissingRequiredArgument(required_arg)
+        raise MissingRequiredArgument(arg=required_arg)
 
     for arg in args.keys():
       if arg not in self.args:
-        raise UnknownArgument(arg)
+        raise UnknownArgument(arg=arg)
 
   def __call__(self, ctx, args):
     self._bind(args)
     return self.func(ctx, **args)
 
 
-class RegistryError(Exception): pass
-class UnknownService(RegistryError): pass
+class PheroError(Exception):
+  def __init__(self, **kwargs):
+    self.details = kwargs
 
-class ServiceBindError(Exception): pass
+
+class RegistryError(PheroError): pass
+class UnknownService(RegistryError): pass
+class ServiceBindError(PheroError): pass
 class MissingRequiredArgument(ServiceBindError): pass
 class UnknownArgument(ServiceBindError): pass
